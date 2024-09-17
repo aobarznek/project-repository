@@ -1,0 +1,5 @@
+﻿  client.cpp
+C:\Praktyki\serwer klient\client\client\client.cpp(122,59): warning C4267: "argument": konwersja z "size_t" do "int", możliwa utrata danych
+C:\Praktyki\serwer klient\client\client\client.cpp(129,60): warning C4267: "argument": konwersja z "size_t" do "int", możliwa utrata danych
+C:\Praktyki\serwer klient\client\client\client.cpp(158,64): warning C4267: "argument": konwersja z "size_t" do "int", możliwa utrata danych
+  client.vcxproj -> C:\Praktyki\serwer klient\client\x64\Debug\client.exe
