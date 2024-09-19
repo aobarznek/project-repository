@@ -6,10 +6,12 @@
 #include <fstream>
 #include "ConfReader.h"
 #pragma comment(lib, "ws2_32.lib")
-
+#include<map>
 using namespace std;
+map<string, SOCKET> userSocketMap;
 
-void rejestracja(SOCKET kgniazdo) 
+
+void rejestracja(SOCKET kgniazdo)
 {
     char buffer[1024];
     int recvSize = recv(kgniazdo, buffer, sizeof(buffer), 0);
@@ -22,10 +24,10 @@ void rejestracja(SOCKET kgniazdo)
 
     buffer[recvSize] = '\0';
 
- 
+
     sqlite3* db;
     int rc = sqlite3_open("bd.db", &db);
-    if (rc != SQLITE_OK) 
+    if (rc != SQLITE_OK)
     {
         cout << "Nie mozna otworzyc bazy: " << sqlite3_errmsg(db) << endl;
         send(kgniazdo, "Blad bazy danych", strlen("Blad bazy danych"), 0);
@@ -35,7 +37,7 @@ void rejestracja(SOCKET kgniazdo)
     const char* sql = "INSERT INTO users (nazwa) VALUES (?)";
     sqlite3_stmt* stmt;
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) 
+    if (rc != SQLITE_OK)
     {
         cout << "Blad przygotowania zapytania: " << sqlite3_errmsg(db) << endl;
         send(kgniazdo, "Blad przygotowania zapytania", strlen("Blad przygotowania zapytania"), 0);
@@ -45,12 +47,12 @@ void rejestracja(SOCKET kgniazdo)
 
     sqlite3_bind_text(stmt, 1, buffer, -1, SQLITE_STATIC);
     rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE) 
+    if (rc != SQLITE_DONE)
     {
         cout << "Blad wykonywania zapytania: " << sqlite3_errmsg(db) << endl;
         send(kgniazdo, "Blad wykonywania zapytania", strlen("Blad wykonywania zapytania"), 0);
     }
-    else 
+    else
     {
         cout << "Nazwa uzytkownika zostala zapisana." << endl;
         send(kgniazdo, "Rejestracja sie powiodla", strlen("Rejestracja sie powiodla"), 0);
@@ -60,14 +62,14 @@ void rejestracja(SOCKET kgniazdo)
     sqlite3_close(db);
 }
 
-void listauzytkownikow(SOCKET kgniazdo) 
+void listauzytkownikow(SOCKET kgniazdo)
 {
     sqlite3* db;
     sqlite3_stmt* stmt;
     string lista = "";
 
     int rc = sqlite3_open("bd.db", &db);
-    if (rc != SQLITE_OK) 
+    if (rc != SQLITE_OK)
     {
         cout << "Nie mozna otworzyc bazy danych: " << sqlite3_errmsg(db) << endl;
         send(kgniazdo, "Blad bazy danych", strlen("Blad bazy danych"), 0);
@@ -76,7 +78,7 @@ void listauzytkownikow(SOCKET kgniazdo)
 
     const char* sql = "SELECT nazwa FROM users";
     rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) 
+    if (rc != SQLITE_OK)
     {
         cout << "Blad przygotowania zapytania: " << sqlite3_errmsg(db) << endl;
         send(kgniazdo, "Blad przygotowania zapytania", strlen("Blad przygotowania zapytania"), 0);
@@ -84,7 +86,7 @@ void listauzytkownikow(SOCKET kgniazdo)
         return;
     }
 
-    while (sqlite3_step(stmt) == SQLITE_ROW) 
+    while (sqlite3_step(stmt) == SQLITE_ROW)
     {
         const char* nazwa = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
         lista += nazwa;
@@ -96,33 +98,76 @@ void listauzytkownikow(SOCKET kgniazdo)
     sqlite3_finalize(stmt);
     sqlite3_close(db);
 }
-//void logowanie(SOCKET kgniazdo) //(niedokonczone)
-//{
-   // char buffer[1024];
-  //  int recvSize = recv(kgniazdo, buffer, sizeof(buffer), 0);
-    //if (recvSize == SOCKET_ERROR)
-   // {
-  //      int error = WSAGetLastError();
-//        cout << "Blad odbierania wiadomosci: " << error << endl;
-    //    send(kgniazdo, "Blad odbierania wiadomosci", strlen("Blad odbierania wiadomosci"), 0);
-//    }
 
-   // buffer[recvSize] = '\0';
+//LOGOWANIE
+void logowanie(SOCKET kgniazdo) {
+    char buffer[1024];
+    int recvSize = recv(kgniazdo, buffer, sizeof(buffer), 0);
+    if (recvSize == SOCKET_ERROR) {
+        int error = WSAGetLastError();
+        cout << "Blad odbierania wiadomosci: " << error << endl;
+        send(kgniazdo, "Blad odbierania wiadomosci", strlen("Blad odbierania wiadomosci"), 0);
+        return;
+    }
 
-  //  sqlite3* db;
-   // int rc = sqlite3_open("bd.db", &db);
-   // if (rc != SQLITE_OK)
-  //  {
-  //      cout << "Nie mozna otworzyc bazy: " << sqlite3_errmsg(db) << endl;
- //       send(kgniazdo, "Blad bazy danych", strlen("Blad bazy danych"), 0);
-  //      return;
-//    }
+    buffer[recvSize] = '\0';
+    string userInput(buffer);
 
-//    const char* sql = "SELECT COUNT(*) FROM users WHERE nazwa = ?";
-  //  sqlite3_stmt* stmt;
-   // rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    string username = userInput.substr(5); 
 
-int main() 
+    sqlite3* db;
+    int rc = sqlite3_open("bd.db", &db);
+    if (rc != SQLITE_OK) {
+        cout << "Nie mozna otworzyc bazy: " << sqlite3_errmsg(db) << endl;
+        send(kgniazdo, "Blad bazy danych", strlen("Blad bazy danych"), 0);
+        return;
+    }
+
+    const char* sql = "SELECT COUNT(*) FROM users WHERE nazwa = ?";
+   sqlite3_stmt* stmt;
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        cout << "Blad przygotowania zapytania: " << sqlite3_errmsg(db) << endl;
+        send(kgniazdo, "Blad przygotowania zapytania", strlen("Blad przygotowania zapytania"), 0);
+        sqlite3_close(db);
+        return;
+    }
+
+    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
+   rc = sqlite3_step(stmt);
+   int userExists = sqlite3_column_int(stmt, 0);
+    
+    if (userExists > 0) {
+       send(kgniazdo, "Zalogowano pomyslnie", strlen("Zalogowano pomyslnie"), 0);
+    }
+    else {
+        send(kgniazdo, "Nie znaleziono uzytkownika", strlen("Nie znaleziono uzytkownika"), 0);
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+}
+void obslugaWiadomosci(string wiadomosc, SOCKET nadawcaSocket) 
+{
+    // Przetwarzanie wiadomości
+    size_t pos1 = wiadomosc.find('#');
+    size_t pos2 = wiadomosc.find('#', pos1 + 1);
+    if (pos1 == string::npos || pos2 == string::npos) return;
+
+    string typ = wiadomosc.substr(0, pos1);
+    string odbiorca = wiadomosc.substr(pos1 + 1, pos2 - pos1 - 1);
+    string tresc = wiadomosc.substr(pos2 + 1);
+
+    if (typ == "message") {
+        auto it = userSocketMap.find(odbiorca);
+        if (it != userSocketMap.end()) {
+            SOCKET odbiorcaSocket = it->second;
+            send(odbiorcaSocket, tresc.c_str(), tresc.length(), 0);
+        }
+    }
+}
+
+int main()
 {
     WSADATA wsadata;
     SOCKET sgniazdo, kgniazdo;
@@ -135,14 +180,14 @@ int main()
     string ipS(dbreader.addrIp);
     int port = dbreader.port;
 
-    if (WSAStartup(MAKEWORD(2, 2), &wsadata) != 0) 
+    if (WSAStartup(MAKEWORD(2, 2), &wsadata) != 0)
     {
         cout << "Blad inicjalizacji Winsock" << endl;
         return 1;
     }
 
     sgniazdo = socket(AF_INET, SOCK_STREAM, 0);
-    if (sgniazdo == INVALID_SOCKET) 
+    if (sgniazdo == INVALID_SOCKET)
     {
         cout << "Blad tworzenia gniazda" << endl;
         WSACleanup();
@@ -153,7 +198,7 @@ int main()
     serwer.sin_addr.s_addr = inet_addr(ipS.c_str());
     serwer.sin_port = htons(port);
 
-    if (bind(sgniazdo, (struct sockaddr*)&serwer, sizeof(serwer)) == SOCKET_ERROR) 
+    if (bind(sgniazdo, (struct sockaddr*)&serwer, sizeof(serwer)) == SOCKET_ERROR)
     {
         cout << "Blad bindowania" << endl;
         closesocket(sgniazdo);
@@ -161,7 +206,7 @@ int main()
         return 1;
     }
 
-    if (listen(sgniazdo, 3) == SOCKET_ERROR) 
+    if (listen(sgniazdo, 3) == SOCKET_ERROR)
     {
         cout << "Blad nasluchiwania" << endl;
         closesocket(sgniazdo);
@@ -170,11 +215,11 @@ int main()
     }
 
     cout << "Czekanie na polaczenie" << endl;
-    while (ile <= 999) 
+    while (ile <= 999)
     {
         rozmiar = sizeof(struct sockaddr_in);
         kgniazdo = accept(sgniazdo, (struct sockaddr*)&klient, &rozmiar);
-        if (kgniazdo == INVALID_SOCKET) 
+        if (kgniazdo == INVALID_SOCKET)
         {
             cout << "Blad akceptacji polaczenia" << endl;
             closesocket(sgniazdo);
@@ -183,8 +228,19 @@ int main()
         }
 
         cout << "Polaczono z klientem" << endl;
+        // Przechowuj połączenie
+        userSocketMap["winiary"] = kgniazdo;
+
         rejestracja(kgniazdo);
         listauzytkownikow(kgniazdo);
+
+        // Odbieranie wiadomości
+        int recvSize = recv(kgniazdo, buffer, sizeof(buffer), 0);
+        if (recvSize > 0) {
+            buffer[recvSize] = '\0';
+            obslugaWiadomosci(buffer, kgniazdo);
+        }
+
         closesocket(kgniazdo);
         ile++;
     }
