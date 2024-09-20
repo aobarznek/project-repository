@@ -6,11 +6,53 @@
 #include <fstream>
 #include "ConfReader.h"
 #pragma comment(lib, "ws2_32.lib")
-#include<map>
+
 using namespace std;
-map<string, SOCKET> userSocketMap;
+void logowanie(SOCKET kgniazdo) {
+    char buffer[1024];
+    int recvSize = recv(kgniazdo, buffer, sizeof(buffer), 0);
+    if (recvSize == SOCKET_ERROR) {
+        int error = WSAGetLastError();
+        cout << "Blad odbierania wiadomosci: " << error << endl;
+        send(kgniazdo, "Blad odbierania wiadomosci", strlen("Blad odbierania wiadomosci"), 0);
+        return;
+    }
 
+    buffer[recvSize] = '\0';
+    string username(buffer);
 
+    sqlite3* db;
+    int rc = sqlite3_open("bd.db", &db);
+    if (rc != SQLITE_OK) {
+        cout << "Nie mozna otworzyc bazy: " << sqlite3_errmsg(db) << endl;
+        send(kgniazdo, "Blad bazy danych", strlen("Blad bazy danych"), 0);
+        return;
+    }
+
+    const char* sql = "SELECT COUNT(*) FROM users WHERE nazwa = ?";
+    sqlite3_stmt* stmt;
+    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        cout << "Blad przygotowania zapytania: " << sqlite3_errmsg(db) << endl;
+        send(kgniazdo, "Blad przygotowania zapytania", strlen("Blad przygotowania zapytania"), 0);
+        sqlite3_close(db);
+        return;
+    }
+
+    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
+    rc = sqlite3_step(stmt);
+    int userExists = sqlite3_column_int(stmt, 0);
+
+    if (userExists > 0) {
+        send(kgniazdo, "Zalogowano pomyslnie", strlen("Zalogowano pomyslnie"), 0);
+    }
+    else {
+        send(kgniazdo, "Nie znaleziono uzytkownika", strlen("Nie znaleziono uzytkownika"), 0);
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(db);
+}
 void rejestracja(SOCKET kgniazdo)
 {
     char buffer[1024];
@@ -100,73 +142,53 @@ void listauzytkownikow(SOCKET kgniazdo)
 }
 
 //LOGOWANIE
-void logowanie(SOCKET kgniazdo) {
-    char buffer[1024];
-    int recvSize = recv(kgniazdo, buffer, sizeof(buffer), 0);
-    if (recvSize == SOCKET_ERROR) {
-        int error = WSAGetLastError();
-        cout << "Blad odbierania wiadomosci: " << error << endl;
-        send(kgniazdo, "Blad odbierania wiadomosci", strlen("Blad odbierania wiadomosci"), 0);
-        return;
-    }
+//void logowanie(SOCKET kgniazdo) {
+  //  char buffer[1024];
+    //int recvSize = recv(kgniazdo, buffer, sizeof(buffer), 0);
+   // if (recvSize == SOCKET_ERROR) {
+     //   int error = WSAGetLastError();
+       // cout << "Blad odbierania wiadomosci: " << error << endl;
+        //send(kgniazdo, "Blad odbierania wiadomosci", strlen("Blad odbierania wiadomosci"), 0);
+        //return;
+   // }
 
-    buffer[recvSize] = '\0';
-    string userInput(buffer);
+    //buffer[recvSize] = '\0';
+    //string userInput(buffer);
 
-    string username = userInput.substr(5); 
+    //string username = userInput.substr(6);  // Pomijamy "login " i pobieramy nazwę użytkownika
 
-    sqlite3* db;
-    int rc = sqlite3_open("bd.db", &db);
-    if (rc != SQLITE_OK) {
-        cout << "Nie mozna otworzyc bazy: " << sqlite3_errmsg(db) << endl;
-        send(kgniazdo, "Blad bazy danych", strlen("Blad bazy danych"), 0);
-        return;
-    }
+    //sqlite3* db;
+    //int rc = sqlite3_open("bd.db", &db);
+    //if (rc != SQLITE_OK) {
+      //  cout << "Nie mozna otworzyc bazy: " << sqlite3_errmsg(db) << endl;
+       // send(kgniazdo, "Blad bazy danych", strlen("Blad bazy danych"), 0);
+     //   return;
+    //}
 
-    const char* sql = "SELECT COUNT(*) FROM users WHERE nazwa = ?";
-   sqlite3_stmt* stmt;
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) {
-        cout << "Blad przygotowania zapytania: " << sqlite3_errmsg(db) << endl;
-        send(kgniazdo, "Blad przygotowania zapytania", strlen("Blad przygotowania zapytania"), 0);
-        sqlite3_close(db);
-        return;
-    }
+    //const char* sql = "SELECT COUNT(*) FROM users WHERE nazwa = ?";
+    //sqlite3_stmt* stmt;
+    //rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+//    if (rc != SQLITE_OK) {
+  //      cout << "Blad przygotowania zapytania: " << sqlite3_errmsg(db) << endl;
+    //    send(kgniazdo, "Blad przygotowania zapytania", strlen("Blad przygotowania zapytania"), 0);
+      //  sqlite3_close(db);
+        //return;
+    //}
 
-    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
-   rc = sqlite3_step(stmt);
-   int userExists = sqlite3_column_int(stmt, 0);
-    
-    if (userExists > 0) {
-       send(kgniazdo, "Zalogowano pomyslnie", strlen("Zalogowano pomyslnie"), 0);
-    }
-    else {
-        send(kgniazdo, "Nie znaleziono uzytkownika", strlen("Nie znaleziono uzytkownika"), 0);
-    }
+//    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
+  //  rc = sqlite3_step(stmt);
+    //int userExists = sqlite3_column_int(stmt, 0);
+    //
+    //if (userExists > 0) {
+      //  send(kgniazdo, "Zalogowano pomyslnie", strlen("Zalogowano pomyslnie"), 0);
+    //}
+    //else {
+      //  send(kgniazdo, "Nie znaleziono uzytkownika", strlen("Nie znaleziono uzytkownika"), 0);
+    //}
 
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
-}
-void obslugaWiadomosci(string wiadomosc, SOCKET nadawcaSocket) 
-{
-    // Przetwarzanie wiadomości
-    size_t pos1 = wiadomosc.find('#');
-    size_t pos2 = wiadomosc.find('#', pos1 + 1);
-    if (pos1 == string::npos || pos2 == string::npos) return;
-
-    string typ = wiadomosc.substr(0, pos1);
-    string odbiorca = wiadomosc.substr(pos1 + 1, pos2 - pos1 - 1);
-    string tresc = wiadomosc.substr(pos2 + 1);
-
-    if (typ == "message") {
-        auto it = userSocketMap.find(odbiorca);
-        if (it != userSocketMap.end()) {
-            SOCKET odbiorcaSocket = it->second;
-            send(odbiorcaSocket, tresc.c_str(), tresc.length(), 0);
-        }
-    }
-}
-
+    //sqlite3_finalize(stmt);
+    //sqlite3_close(db);
+//}
 int main()
 {
     WSADATA wsadata;
@@ -228,24 +250,33 @@ int main()
         }
 
         cout << "Polaczono z klientem" << endl;
-        // Przechowuj połączenie
-        userSocketMap["winiary"] = kgniazdo;
+        char commandBuffer[1024];
+        int recvSize = recv(kgniazdo, commandBuffer, sizeof(commandBuffer), 0);
+        if (recvSize == SOCKET_ERROR) {
+            cout << "Blad odbierania polecenia" << endl;
+            closesocket(kgniazdo);
+            continue;
+        }
+        commandBuffer[recvSize] = '\0';
+        string command(commandBuffer);
 
-        rejestracja(kgniazdo);
-        listauzytkownikow(kgniazdo);
-
-        // Odbieranie wiadomości
-        int recvSize = recv(kgniazdo, buffer, sizeof(buffer), 0);
-        if (recvSize > 0) {
-            buffer[recvSize] = '\0';
-            obslugaWiadomosci(buffer, kgniazdo);
+        if (command == "register") {
+            rejestracja(kgniazdo);
+        }
+        else if (command == "login") {
+            logowanie(kgniazdo);
+        }
+        else {
+            send(kgniazdo, "Nieznana komenda", strlen("Nieznana komenda"), 0);
         }
 
+        listauzytkownikow(kgniazdo);
         closesocket(kgniazdo);
         ile++;
     }
 
-    closesocket(sgniazdo);
-    WSACleanup();
-    return 0;
+
+closesocket(sgniazdo);
+WSACleanup();
+return 0;
 }

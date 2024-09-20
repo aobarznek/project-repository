@@ -2,6 +2,9 @@
 #include<winsock2.h>
 #include<ws2tcpip.h>
 #include <windows.h>
+#include<cstring>
+#include<string>
+
 #include<regex> // Do walidacji adresu IP i portu
 #pragma comment(lib,"ws2_32.lib")//winsock
 using namespace std;
@@ -38,18 +41,17 @@ bool porttest(const string& port1)
 
 int main()
 {
-  
-        WSADATA wsaData;
-        SOCKET kgniazdo;
-        struct sockaddr_in server;
-        string ip, port1, user, opcje;
-        int port2;
-        string setting, block, color, back;
-        string nazwa, nazwa1, wiadomosc, odbiorca;
+    WSADATA wsaData;
+    SOCKET kgniazdo;
+    struct sockaddr_in server;
+    string ip, port1, user, opcje;
+    int port2;
+    string setting, block, color, back;
+    string nazwa, nazwa1, mute;
     // winsock
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
-        cout << "Blad" << endl;
+       std::cout << "Blad" << endl;
         return 1;
     }
 
@@ -106,40 +108,42 @@ int main()
     }
     cout << "Polaczono z serwerem" << endl;
 
-
     do
     {
-        cout << "REJESTRACJA/LOGOWANIE (logowanie niegotowe)";
+        cout << "REJESTRACJA/LOGOWANIE: ";
         cout << "wpisz register lub login: ";
         getline(cin, opcje);
-    } while (opcje != "register" and opcje != "login");
-    if (opcje == "register")
-    {
-        cout << "podaj nazwe uzytkownika" << endl;
-
+    } while (opcje != "register" && opcje != "login");
+    send(kgniazdo, opcje.c_str(), opcje.length(), 0);
+    if (opcje == "register") {
+        cout << "podaj nazwe uzytkownika: ";
         getline(cin, nazwa);
         send(kgniazdo, nazwa.c_str(), nazwa.length(), 0);
         char response[1024];
         int recvSize = recv(kgniazdo, response, sizeof(response), 0);
         response[recvSize] = '\0';
         cout << response << endl;
-        
     }
-    //(NIE DZIALA)
-    else if (opcje == "login") {
+    if (opcje == "login") {
         cout << "Podaj nazwe uzytkownika do logowania: ";
         getline(cin, nazwa1);
-        string request = "login " + nazwa1;
-        send(kgniazdo, request.c_str(), request.length(), 0);
+        send(kgniazdo, nazwa1.c_str(), nazwa1.length(), 0);
         char response[1024];
-       int recvSize = recv(kgniazdo, response, sizeof(response), 0);
-        response[recvSize] = '\0';
-        cout << response << endl;
-        if (strcmp(response, "Nie znaleziono uzytkownika") == 0) 
-        {
-           cout << "Uzytkownik nie istnieje. Przejdz do rejestracji." << endl;
-       }
+        int recvSize = recv(kgniazdo, response, sizeof(response), 0);
+
+        if (recvSize > 0) {
+            response[recvSize] = '\0'; // Terminator ciągu znaków
+            cout << response << endl;
+
+            if (strcmp(response, "Nie znaleziono uzytkownika") == 0)
+            {
+                exit(0);
+            }
+        }
+        
+        
     }
+
     do
     {
         do
@@ -157,29 +161,37 @@ int main()
             }
 
 
-            cout << "Aby wybrac uzytkownika napisz jego nazwe uzytkownika" << endl;
+            cout << "Aby napisac do uzytkownika wpisz - message" << endl;
             cout << "exit - wyjscie z programu" << endl;
             cout << "settings - ustawienia" << endl;
 
 
             getline(cin, user);
-            if (user != "exit" and user != "settings" and user != "winiary")
+            if (user != "exit" and user != "settings" and user != "message")
             {
                 cout << "wprowadziles nazwe opcji ktora nie istnieje w programie" << endl;
             }
-        } while (user != "exit" and user != "settings" and user != "winiary");
-        if (user == "user")
-        {
-            
-        cout<< "Napisz zdanie ktore chcesz wyslac do uzytkownika" << endl;
-            getline(cin, wiadomosc);
-            cout << "wybierz odbiorce: " << endl;
-            getline(cin, odbiorca);
-           
-            string message = "message#" + odbiorca + "#" + wiadomosc;
-            send(kgniazdo, message.c_str(), message.length(), 0);
-            
+        } while (user != "exit" and user != "settings" and user != "message");
+        if (opcje == "message") {
+            std::string receiver ="";
+
+            cout << "Podaj nazwę użytkownika odbiorcy: ";
+            getline(cin, receiver);
+            cout << "Podaj wiadomość: ";
+            string message;
+            getline(cin, message);
+            string fullMessage = receiver + ":" + message;
+            send(kgniazdo, fullMessage.c_str(), fullMessage.length(), 0);
+            char response[1024];
+            int recvSize = recv(kgniazdo, response, sizeof(response), 0);
+            response[recvSize] = '\0';
+            cout << response << endl;
         }
+   
+  
+   
+
+        
         if (user == "exit")
         {
             exit(0);
@@ -199,6 +211,15 @@ int main()
             } while (setting != "mute" and setting != "block" and setting != "color");
 
         }
+        if (setting == "mute")
+        {
+            cout << "jakiego uzytkownika chcesz zablokowac(mute (user))" << endl;
+            cout << "exit - wyjscie z programu" << endl;
+            if (mute == "exit")
+            {
+                exit(0);
+            }
+        }
         if (setting == "block")
         {
             cout << "Czy jestes pewny, ze chcesz zablokowac usera(tak/nie)" << endl;
@@ -209,7 +230,7 @@ int main()
             }
             else
             {
-                system("pause");
+                exit(0);
             }
         }
         if (setting == "color")
@@ -218,6 +239,11 @@ int main()
             {
                 cout << "\nNapisz wybrany kolor (zielony/niebieski/fioletowy" << endl;
                 getline(cin, color);
+                cout << "exit - wyjscie z programu" << endl;
+                if (color == "exit")
+                {
+                    exit(0);
+                }
             } while (color != "zielony" and color != "niebieski" and color != "fioletowy");
             setCursorPosition(90, 0);
             if (color == "zielony")
@@ -249,7 +275,7 @@ int main()
 
     } while (back == "tak");
 
-
+ 
 
     Sleep(500);
     closesocket(kgniazdo);
