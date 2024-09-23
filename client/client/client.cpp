@@ -4,7 +4,7 @@
 #include <windows.h>
 #include<cstring>
 #include<string>
-
+#include<thread>
 #include<regex> // Do walidacji adresu IP i portu
 #pragma comment(lib,"ws2_32.lib")//winsock
 using namespace std;
@@ -51,7 +51,7 @@ int main()
     // winsock
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
-       std::cout << "Blad" << endl;
+        std::cout << "Blad" << endl;
         return 1;
     }
 
@@ -132,7 +132,7 @@ int main()
         int recvSize = recv(kgniazdo, response, sizeof(response), 0);
 
         if (recvSize > 0) {
-            response[recvSize] = '\0'; // Terminator ciągu znaków
+            response[recvSize] = '\0';
             cout << response << endl;
 
             if (strcmp(response, "Nie znaleziono uzytkownika") == 0)
@@ -140,8 +140,8 @@ int main()
                 exit(0);
             }
         }
-        
-        
+
+
     }
 
     do
@@ -164,7 +164,18 @@ int main()
             cout << "Aby napisac do uzytkownika wpisz - message" << endl;
             cout << "exit - wyjscie z programu" << endl;
             cout << "settings - ustawienia" << endl;
+            thread receiveThread([kgniazdo]() {
+                while (true) {
+                    char incomingMessage[1024];
+                    int recvSize = recv(kgniazdo, incomingMessage, sizeof(incomingMessage), 0);
+                    if (recvSize > 0) {
+                        incomingMessage[recvSize] = '\0';
+                        cout << "\nOtrzymano wiadomość: " << incomingMessage << endl;
+                    }
+                }
+                });
 
+            receiveThread.detach();
 
             getline(cin, user);
             if (user != "exit" and user != "settings" and user != "message")
@@ -172,9 +183,10 @@ int main()
                 cout << "wprowadziles nazwe opcji ktora nie istnieje w programie" << endl;
             }
         } while (user != "exit" and user != "settings" and user != "message");
-        if (opcje == "message") {
-            std::string receiver ="";
 
+        if (user == "message")
+        {
+            string receiver;
             cout << "Podaj nazwę użytkownika odbiorcy: ";
             getline(cin, receiver);
             cout << "Podaj wiadomość: ";
@@ -186,12 +198,13 @@ int main()
             int recvSize = recv(kgniazdo, response, sizeof(response), 0);
             response[recvSize] = '\0';
             cout << response << endl;
+            
         }
-   
-  
-   
+        char response[1024];
+        int recvSize = recv(kgniazdo, response, sizeof(response), 0);
+        response[recvSize] = '\0';
+        cout << response << endl;
 
-        
         if (user == "exit")
         {
             exit(0);
@@ -227,6 +240,7 @@ int main()
             if (block == "tak")
             {
                 cout << "zablokowales uzytkownika" << endl;
+                
             }
             else
             {
@@ -275,7 +289,7 @@ int main()
 
     } while (back == "tak");
 
- 
+
 
     Sleep(500);
     closesocket(kgniazdo);
